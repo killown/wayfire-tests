@@ -412,7 +412,7 @@ class TestWayfire:
                     Popen(command, shell=True)
 
     def test_spam_go_workspace_set_focus(self):
-        list_ids = self.utils.list_ids()
+        list_ids = [i["id"] for i in self.utils.list_filtered_views()]
         num_items = randint(1, len(list_ids))
         random_views = sample(list_ids, num_items)
         for view_id in random_views:
@@ -440,16 +440,24 @@ class TestWayfire:
 
         choice(functions)()
 
+
     def test_wayfire(
         self, number_of_views_to_open, max_tries=1, speed=0, plugin=None, display=None
     ):
         from gtk3_window import spam_new_views
         from gtk3_dialogs import spam_new_dialogs
 
+        # Set up logging
+        log_file = "/tmp/fuzzy-functions.log"
+
+        def log_message(message):
+            with open(log_file, "a") as f:
+                f.write(f"{message}\n")
+
         # Retrieve necessary data
         view_id = self.test_random_view_id()
         workspaces = (
-            [{"x": x, "y": y} for x, y in self.utils._total_workspaces().values()]
+            [[x,  y] for x, y in self.utils._total_workspaces().values()]
             if self.utils._total_workspaces()
             else []
         )
@@ -457,13 +465,13 @@ class TestWayfire:
 
         # Define functions to be executed
         functions = [
-            (self.utils.go_workspace_set_focus, (view_id)),
+            (self.test_spam_go_workspace_set_focus, ()),
             (self.test_move_cursor_and_click, ()),
             (self.test_plugins, (plugin,)),
             (self.test_low_priority_plugins, (plugin,)),
             (self.test_move_cursor_and_drag_drop, ()),
             (self.test_output, ()),
-            (self.test_random_views, (view_id)),
+            (self.test_random_views, ([view_id])),
             (
                 self.sock.configure_view,
                 (
@@ -476,7 +484,7 @@ class TestWayfire:
             ),
             (
                 self.sock.set_workspace,
-                (choice(workspaces), view_id, choice(self.utils.list_outputs_ids())),
+                (*choice(workspaces), view_id, choice(self.utils.list_outputs_ids())),
             ),
         ]
 
@@ -490,12 +498,6 @@ class TestWayfire:
 
         thread = threading.Thread(target=spam_new_dialogs)
         thread.start()
-
-        # spam_new_layers_thread = threading.Thread(target=spam_new_layers)
-        # spam_new_layers_thread.start()
-
-        # FIXME: Implement this to not use keybinds in the terminal with script running
-        # first_view_focused = self.get_focused_view()
 
         # Execute functions with specified priority
         func_priority = self.test_set_function_priority(functions)
@@ -513,7 +515,7 @@ class TestWayfire:
                     for func, args in func_priority:
                         for _ in range(4):
                             result = func(*args)
-                            print(result)
+                            log_message(f"Result of {func.__name__}: {result}")
                     should_execute_function_priority = 0
 
                 should_execute_function_priority += 1
@@ -528,11 +530,10 @@ class TestWayfire:
 
                 result = random_function(*args)
                 iterations += 1
-                print(result)
+                log_message(f"Result of {random_function.__name__}: {result}")
                 self.random_delay_next_tx()
+
                 if iterations + 1 == max_tries:
-                    # lets close the focused output in the last iteration
-                    # so it close while still there is actions going on
                     try:
                         output_id = self.utils.get_focused_output_id()
                         if output_id:
@@ -540,8 +541,9 @@ class TestWayfire:
                             if name:
                                 self.stipc.destroy_wayland_output(name)
                     except Exception as e:
-                        print(e)
+                        print(f"Exception while closing output: {e}")
 
             except Exception as e:
                 func_priority = self.test_set_function_priority(functions)
-                print(e)
+                print(f"Exception in main loop: {e}")
+
