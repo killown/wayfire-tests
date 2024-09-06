@@ -1,5 +1,9 @@
 from random import randint, choice
 from fuzzy import TestWayfire
+import sys 
+
+display = sys.argv[-1]
+
 
 test = TestWayfire()
 
@@ -11,7 +15,7 @@ while True:
         number_of_executions = randint(10, 100)
         random_time_to_wait = randint(20, 400)
         test.test_wayfire(
-            number_of_views, number_of_executions, random_time_to_wait, plugin
+            number_of_views, number_of_executions, random_time_to_wait, plugin, display
         )
     except Exception as e:
         print(e)

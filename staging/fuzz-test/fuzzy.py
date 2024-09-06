@@ -5,10 +5,12 @@ import time
 from subprocess import Popen, PIPE, run
 from wayfire.extra.ipc_utils import WayfireUtils
 from wayfire.extra.stipc import Stipc
+import os 
 
 class TestWayfire:
     def __init__(self):
-        self.sock = WayfireSocket()
+        socket_name = os.getenv("WAYFIRE_SOCKET")
+        self.sock = WayfireSocket(socket_name)
         self.utils = WayfireUtils(self.sock)
         self.stipc = Stipc(self.sock)
 
@@ -400,16 +402,16 @@ class TestWayfire:
         return None
 
     def test_spam_terminals(self, number_of_views_to_open, wayland_display=None):
-        chosen_terminal = self.test_choose_terminal()
-        if chosen_terminal:
-            for _ in range(number_of_views_to_open):
-                if wayland_display is None:
-                    self.stipc.run_cmd(chosen_terminal)
-                else:
-                    command = "export WAYLAND_DISPLAY={0} ; {1}".format(
-                        wayland_display, chosen_terminal
-                    )
-                    Popen(command, shell=True)
+            chosen_terminal = self.test_choose_terminal()
+            if chosen_terminal:
+                for _ in range(number_of_views_to_open):
+                    if wayland_display is None:
+                        self.stipc.run_cmd(chosen_terminal)
+                    else:
+                        command = "export WAYLAND_DISPLAY={0} ; {1}".format(
+                            wayland_display, chosen_terminal
+                        )
+                        Popen(command, shell=True)
 
     def test_spam_go_workspace_set_focus(self):
         list_ids = [i["id"] for i in self.utils.list_filtered_views()]
@@ -446,13 +448,6 @@ class TestWayfire:
     ):
         from gtk3_window import spam_new_views
         from gtk3_dialogs import spam_new_dialogs
-
-        # Set up logging
-        log_file = "/tmp/fuzzy-functions.log"
-
-        def log_message(message):
-            with open(log_file, "a") as f:
-                f.write(f"{message}\n")
 
         # Retrieve necessary data
         view_id = self.test_random_view_id()
@@ -515,7 +510,6 @@ class TestWayfire:
                     for func, args in func_priority:
                         for _ in range(4):
                             result = func(*args)
-                            log_message(f"Result of {func.__name__}: {result}")
                     should_execute_function_priority = 0
 
                 should_execute_function_priority += 1
@@ -530,7 +524,6 @@ class TestWayfire:
 
                 result = random_function(*args)
                 iterations += 1
-                log_message(f"Result of {random_function.__name__}: {result}")
                 self.random_delay_next_tx()
 
                 if iterations + 1 == max_tries:
