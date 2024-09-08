@@ -5,7 +5,49 @@ import time
 from subprocess import Popen, PIPE, run
 from wayfire.extra.ipc_utils import WayfireUtils
 from wayfire.extra.stipc import Stipc
-import os 
+import os
+import sys
+
+def check_memory(buffer_size_bytes):
+    # Convert buffer size from bytes to GB
+    buffer_size_gb = buffer_size_bytes / (1024 ** 3)
+    return buffer_size_gb
+
+def check_buffer_sizes(min_size_gb=1):
+    try:
+        # Define minimum size in bytes
+        min_size_bytes = min_size_gb * (1024 ** 3)
+        
+        # Check for receive buffer size
+        with open('/proc/sys/net/core/rmem_max', 'r') as f:
+            rmem_max = int(f.read().strip())
+        
+        # Check for send buffer size
+        with open('/proc/sys/net/core/wmem_max', 'r') as f:
+            wmem_max = int(f.read().strip())
+        
+        # Convert to GB
+        rmem_max_gb = check_memory(rmem_max)
+        wmem_max_gb = check_memory(wmem_max)
+        
+        print(f"Receive Buffer Size: {rmem_max_gb:.2f} GB")
+        print(f"Send Buffer Size: {wmem_max_gb:.2f} GB")
+        
+        # Check if both are at least the minimum required size
+        if rmem_max_gb < min_size_gb or wmem_max_gb < min_size_gb:
+            print(f"Error: Not enough memory available. Required: {min_size_gb} GB for each buffer.")
+            print("""example for sysctl.conf: 
+                    net.core.rmem_max = 1947483648 # 1.8GB
+                    net.core.wmem_max = 1947483648 # 1.8GB""")
+            sys.exit(1)
+        
+        print("Buffer sizes are sufficient.")
+    
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+check_buffer_sizes()
 
 class TestWayfire:
     def __init__(self):
